@@ -18,7 +18,7 @@ export default function Login() {
       await login(username, password);
       navigate('/admin/media');
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.error || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -29,19 +29,34 @@ export default function Login() {
       minHeight: '100vh', display: 'flex', alignItems: 'center',
       justifyContent: 'center', background: 'var(--bg)', padding: '20px'
     }}>
-      <div style={{ width: '100%', maxWidth: '380px' }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+      <div style={{ width: '100%', maxWidth: '360px' }}>
+        {/* Wordmark */}
+        <div style={{ marginBottom: '32px' }}>
           <div style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: '52px', height: '52px', background: 'var(--accent)',
-            borderRadius: '14px', marginBottom: '12px', fontSize: '24px'
-          }}>📺</div>
-          <h1 style={{ fontSize: '22px', fontWeight: '700', letterSpacing: '-0.5px' }}>Screenify</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>Digital Signage Platform</p>
+            display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px'
+          }}>
+            <div style={{
+              width: '32px', height: '32px', borderRadius: '7px',
+              background: 'var(--accent)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="1" y="2" width="14" height="10" rx="1.5" stroke="white" strokeWidth="1.5"/>
+                <path d="M5 14h6" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M8 12v2" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <span style={{ fontSize: '17px', fontWeight: '700', letterSpacing: '-0.4px' }}>Screenify</span>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '12.5px' }}>
+            Sign in to manage your displays
+          </p>
         </div>
 
-        <form className="card" onSubmit={handleSubmit} style={{ padding: '28px' }}>
+        <form onSubmit={handleSubmit} style={{
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)', padding: '24px'
+        }}>
           <div className="form-group">
             <label>Username</label>
             <input
@@ -66,15 +81,20 @@ export default function Login() {
 
           {error && (
             <div style={{
-              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+              background: 'rgba(224,68,68,0.08)', border: '1px solid rgba(224,68,68,0.25)',
               color: '#fca5a5', padding: '8px 12px', borderRadius: 'var(--radius-sm)',
-              fontSize: '13px', marginBottom: '16px'
+              fontSize: '12.5px', marginBottom: '14px'
             }}>
               {error}
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '10px' }} disabled={loading}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{ width: '100%', justifyContent: 'center', padding: '9px' }}
+            disabled={loading}
+          >
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
