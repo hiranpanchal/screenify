@@ -81,8 +81,8 @@ export default function Login() {
 
           {error && (
             <div style={{
-              background: 'rgba(224,68,68,0.08)', border: '1px solid rgba(224,68,68,0.25)',
-              color: '#fca5a5', padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+              background: '#fef2f2', border: '1px solid #fecaca',
+              color: '#b91c1c', padding: '8px 12px', borderRadius: 'var(--radius-sm)',
               fontSize: '12.5px', marginBottom: '14px'
             }}>
               {error}

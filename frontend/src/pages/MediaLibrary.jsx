@@ -195,7 +195,7 @@ export default function MediaLibrary() {
               }}
             >
               {/* Thumbnail */}
-              <div style={{ position: 'relative', aspectRatio: '16/9', background: '#070809', overflow: 'hidden' }}>
+              <div style={{ position: 'relative', aspectRatio: '16/9', background: '#e8eaf1', overflow: 'hidden' }}>
                 {item.type === 'image'
                   ? <img src={`/uploads/${item.filename}`} alt={item.original_name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
