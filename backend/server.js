@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 4000;
 
 // ── Middleware ──────────────────────────────────────────────
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: process.env.NODE_ENV === 'production' ? true : (process.env.FRONTEND_URL || 'http://localhost:5173'),
   credentials: true,
 }));
 app.use(express.json());
@@ -33,13 +33,20 @@ app.use('/api/slideshow', slideshowRoutes);
 // ── Health check ────────────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
+// ── Serve frontend (production) ──────────────────────────────
+const frontendDist = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendDist));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
+
 // ── Error handler ────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Screenify backend running on http://localhost:${PORT}`);
-  console.log(`📁 Uploads served at http://localhost:${PORT}/uploads`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Screenifi running on http://0.0.0.0:${PORT}`);
+  console.log(`📁 Uploads served at http://0.0.0.0:${PORT}/uploads`);
 });
