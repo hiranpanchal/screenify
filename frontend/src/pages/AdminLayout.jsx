@@ -63,7 +63,7 @@ export default function AdminLayout() {
       }}>
         {/* Brand */}
         <div style={{ padding: '20px 16px 18px', borderBottom: '1px solid var(--sidebar-border)' }}>
-          <img src="/logo.svg" alt="Screenifi" style={{ height: '32px', display: 'block' }} />
+          <img src="/logo-white.svg" alt="Screenifi" style={{ height: '44px', display: 'block', width: '100%', objectFit: 'contain', objectPosition: 'left' }} />
         </div>
 
         {/* Nav */}

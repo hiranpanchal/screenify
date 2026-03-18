@@ -142,11 +142,11 @@ export default function MediaLibrary() {
         onDrop={handleDrop}
         onClick={() => fileInputRef.current.click()}
         style={{
-          border: `1px dashed ${dragging ? 'var(--accent)' : 'var(--border)'}`,
-          background: dragging ? 'var(--accent-light)' : 'transparent',
-          borderRadius: 'var(--radius)', padding: '18px',
+          border: `2px dashed ${dragging ? 'var(--accent)' : 'var(--border)'}`,
+          background: dragging ? 'var(--accent-light)' : 'var(--surface)',
+          borderRadius: 'var(--radius)', padding: '48px 18px',
           textAlign: 'center', color: 'var(--text-muted)',
-          fontSize: '12.5px', marginBottom: '24px',
+          fontSize: '13.5px', marginBottom: '24px',
           transition: 'all 0.15s', cursor: 'pointer',
         }}
       >
@@ -159,7 +159,16 @@ export default function MediaLibrary() {
               </div>
             </>
           )
-          : 'Drop images or videos here, or click to browse'
+          : (
+            <>
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ marginBottom: '10px', opacity: 0.4 }}>
+                <path d="M16 20V10M12 14l4-4 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M9 22a5 5 0 01-.5-9.95A7 7 0 1123 16h1a4 4 0 010 8H9z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <div style={{ fontWeight: '500', marginBottom: '4px' }}>Drop images or videos here</div>
+              <div style={{ fontSize: '12px', opacity: 0.7 }}>or click to browse your files</div>
+            </>
+          )
         }
       </div>
 

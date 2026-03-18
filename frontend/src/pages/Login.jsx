@@ -31,8 +31,8 @@ export default function Login() {
     }}>
       <div style={{ width: '100%', maxWidth: '360px' }}>
         {/* Wordmark */}
-        <div style={{ marginBottom: '32px' }}>
-          <img src="/logo.svg" alt="Screenifi" style={{ height: '36px', display: 'block', marginBottom: '10px' }} />
+        <div style={{ marginBottom: '32px', textAlign: 'center' }}>
+          <img src="/logo.svg" alt="Screenifi" style={{ height: '48px', display: 'inline-block', marginBottom: '10px' }} />
           <p style={{ color: 'var(--text-muted)', fontSize: '12.5px' }}>
             Sign in to manage your displays
           </p>

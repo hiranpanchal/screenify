@@ -183,8 +183,18 @@ export default function Display() {
     if (!item) return null;
     const src = `/uploads/${item.filename}`;
     if (item.type === 'video') {
-      return <video key={item.id} src={src} autoPlay muted={false} onEnded={advance}
-        style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
+      return (
+        <video
+          key={item.id}
+          src={src}
+          autoPlay
+          muted
+          playsInline
+          onEnded={advance}
+          ref={el => { if (el) el.play().catch(() => {}); }}
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+        />
+      );
     }
     return <img key={item.id} src={src} alt={item.original_name} />;
   };
