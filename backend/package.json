@@ -1,7 +1,7 @@
 {
-  "name": "screenify-backend",
+  "name": "screenifi-backend",
   "version": "1.0.0",
-  "description": "Screenify digital signage backend",
+  "description": "Screenifi digital signage backend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

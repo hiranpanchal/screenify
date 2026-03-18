@@ -56,34 +56,19 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside style={{
         width: '220px', flexShrink: 0,
-        background: 'var(--surface)',
-        borderRight: '1px solid var(--border)',
+        background: 'var(--sidebar-bg)',
+        borderRight: '1px solid var(--sidebar-border)',
         display: 'flex', flexDirection: 'column',
         position: 'sticky', top: 0, height: '100vh',
       }}>
         {/* Brand */}
-        <div style={{ padding: '18px 16px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-            <div style={{
-              width: '28px', height: '28px', borderRadius: '6px',
-              background: 'var(--accent)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <rect x="1" y="2" width="14" height="10" rx="1.5" stroke="white" strokeWidth="1.5"/>
-                <path d="M5 14h6M8 12v2" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <div>
-              <div style={{ fontWeight: '700', fontSize: '14px', letterSpacing: '-0.3px' }}>Screenify</div>
-              <div style={{ fontSize: '10.5px', color: 'var(--text-subtle)' }}>Digital Signage</div>
-            </div>
-          </div>
+        <div style={{ padding: '20px 16px 18px', borderBottom: '1px solid var(--sidebar-border)' }}>
+          <img src="/logo.svg" alt="Screenifi" style={{ height: '32px', display: 'block' }} />
         </div>
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: '10px 8px' }}>
-          <div style={{ fontSize: '10px', fontWeight: '600', color: 'var(--text-subtle)', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '8px 8px 4px' }}>
+          <div style={{ fontSize: '10px', fontWeight: '600', color: 'var(--sidebar-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '8px 8px 4px' }}>
             Management
           </div>
           {NAV.map(({ to, label, Icon }) => (
@@ -91,13 +76,13 @@ export default function AdminLayout() {
               display: 'flex', alignItems: 'center', gap: '9px',
               padding: '8px 10px', borderRadius: 'var(--radius-sm)',
               marginBottom: '1px', fontSize: '13px', fontWeight: '500',
-              color: isActive ? 'var(--accent-hover)' : 'var(--text-muted)',
-              background: isActive ? 'var(--accent-light)' : 'transparent',
+              color: isActive ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)',
+              background: isActive ? 'var(--sidebar-active-bg)' : 'transparent',
               transition: 'all 0.12s',
             })}>
               {({ isActive }) => (
                 <>
-                  <span style={{ opacity: isActive ? 1 : 0.7 }}><Icon /></span>
+                  <span style={{ opacity: isActive ? 1 : 0.6 }}><Icon /></span>
                   {label}
                 </>
               )}
@@ -106,11 +91,18 @@ export default function AdminLayout() {
         </nav>
 
         {/* Open Display */}
-        <div style={{ padding: '8px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ padding: '8px', borderTop: '1px solid var(--sidebar-border)' }}>
           <button
             onClick={openDisplay}
-            className="btn btn-ghost"
-            style={{ width: '100%', justifyContent: 'center', gap: '7px', fontSize: '12.5px' }}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: '7px', fontSize: '12.5px', fontWeight: '500',
+              background: 'rgba(47,128,237,0.15)', color: 'var(--sidebar-active-text)',
+              border: '1px solid rgba(47,128,237,0.25)', borderRadius: 'var(--radius-sm)',
+              padding: '7px 14px', cursor: 'pointer', transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(47,128,237,0.25)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(47,128,237,0.15)'}
           >
             <Icons.Display /> Open Display
           </button>
@@ -118,18 +110,24 @@ export default function AdminLayout() {
 
         {/* User */}
         <div style={{
-          padding: '12px 14px', borderTop: '1px solid var(--border)',
+          padding: '12px 14px', borderTop: '1px solid var(--sidebar-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <div style={{ fontSize: '12.5px', fontWeight: '600' }}>{user?.username}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-subtle)' }}>Administrator</div>
+            <div style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--sidebar-text)' }}>{user?.username}</div>
+            <div style={{ fontSize: '11px', color: 'var(--sidebar-muted)' }}>Administrator</div>
           </div>
           <button
             onClick={handleLogout}
-            className="btn btn-ghost btn-sm"
             title="Sign out"
-            style={{ padding: '5px 7px' }}
+            style={{
+              padding: '5px 7px', background: 'transparent',
+              color: 'var(--sidebar-muted)', border: '1px solid var(--sidebar-border)',
+              borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all 0.15s',
+              display: 'flex', alignItems: 'center',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--sidebar-text)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--sidebar-muted)'; e.currentTarget.style.borderColor = 'var(--sidebar-border)'; }}
           >
             <Icons.Logout />
           </button>

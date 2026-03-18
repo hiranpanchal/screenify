@@ -1,18 +1,35 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #f4f5f8;
+  /* Screenifi brand palette */
+  --midnight: #0B1F3A;       /* Midnight Blue — sidebar, headings */
+  --electric: #2F80ED;       /* Electric Blue — accent / CTA */
+  --electric-hover: #1A6DD4;
+  --electric-light: rgba(47,128,237,0.09);
+
+  /* Content area */
+  --bg: #F5F7FA;             /* Soft White */
   --surface: #ffffff;
-  --surface2: #f0f1f5;
-  --surface3: #e8eaf1;
-  --border: #e2e4ed;
-  --border-hover: #c8cad8;
-  --accent: #4f5bda;
-  --accent-hover: #3d49c4;
-  --accent-light: rgba(79,91,218,0.08);
-  --text: #16192b;
-  --text-muted: #6b7280;
-  --text-subtle: #9ca3af;
+  --surface2: #EEF1F6;
+  --surface3: #E4E9F2;
+  --border: #D8DDE8;
+  --border-hover: #B0BBCC;
+
+  /* Sidebar (dark) */
+  --sidebar-bg: #0B1F3A;
+  --sidebar-border: rgba(255,255,255,0.07);
+  --sidebar-text: rgba(255,255,255,0.85);
+  --sidebar-muted: rgba(255,255,255,0.45);
+  --sidebar-active-bg: rgba(47,128,237,0.18);
+  --sidebar-active-text: #7DB8F7;
+
+  /* Aliases for shared components */
+  --accent: var(--electric);
+  --accent-hover: var(--electric-hover);
+  --accent-light: var(--electric-light);
+  --text: #0B1F3A;
+  --text-muted: #5A6A82;
+  --text-subtle: #8898AA;
   --danger: #dc2626;
   --danger-hover: #b91c1c;
   --success: #16a34a;

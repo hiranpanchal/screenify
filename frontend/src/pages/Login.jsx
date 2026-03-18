@@ -32,22 +32,7 @@ export default function Login() {
       <div style={{ width: '100%', maxWidth: '360px' }}>
         {/* Wordmark */}
         <div style={{ marginBottom: '32px' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px'
-          }}>
-            <div style={{
-              width: '32px', height: '32px', borderRadius: '7px',
-              background: 'var(--accent)', display: 'flex', alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="1" y="2" width="14" height="10" rx="1.5" stroke="white" strokeWidth="1.5"/>
-                <path d="M5 14h6" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M8 12v2" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <span style={{ fontSize: '17px', fontWeight: '700', letterSpacing: '-0.4px' }}>Screenify</span>
-          </div>
+          <img src="/logo.svg" alt="Screenifi" style={{ height: '36px', display: 'block', marginBottom: '10px' }} />
           <p style={{ color: 'var(--text-muted)', fontSize: '12.5px' }}>
             Sign in to manage your displays
           </p>
