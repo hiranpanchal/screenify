@@ -3,6 +3,8 @@ backend/node_modules/
 frontend/node_modules/
 backend/uploads/
 backend/screenify.db
+backend/screenify.db-shm
+backend/screenify.db-wal
 backend/.env
 dist/
 .DS_Store
