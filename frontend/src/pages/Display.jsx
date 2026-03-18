@@ -3,9 +3,7 @@ import api from '../api/client';
 
 const DISPLAY_STYLES = `
   body { background: #000 !important; overflow: hidden !important; }
-  .slide-container {
-    position: fixed; inset: 0; background: #000; overflow: hidden;
-  }
+  .slide-container { position: fixed; inset: 0; background: #000; overflow: hidden; }
   .slide {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
@@ -20,27 +18,26 @@ const DISPLAY_STYLES = `
   @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 
   /* Slide Left */
-  .enter-slide { animation: slideEnter var(--spd) ease both; }
-  .leave-slide { animation: slideLeave var(--spd) ease both; }
-  @keyframes slideEnter { from { transform: translateX(100%); } to { transform: translateX(0); } }
-  @keyframes slideLeave { from { transform: translateX(0); }    to { transform: translateX(-100%); } }
+  .enter-slide { animation: slideInRight var(--spd) ease both; }
+  .leave-slide { animation: slideOutLeft var(--spd) ease both; }
+  @keyframes slideInRight  { from { transform: translateX(100%); } to { transform: translateX(0); } }
+  @keyframes slideOutLeft  { from { transform: translateX(0); }    to { transform: translateX(-100%); } }
 
   /* Slide Up */
-  .enter-slide-up { animation: slideUpEnter var(--spd) ease both; }
-  .leave-slide-up { animation: slideUpLeave var(--spd) ease both; }
-  @keyframes slideUpEnter { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  @keyframes slideUpLeave { from { transform: translateY(0); }    to { transform: translateY(-100%); } }
+  .enter-slide-up { animation: slideInUp  var(--spd) ease both; }
+  .leave-slide-up { animation: slideOutUp var(--spd) ease both; }
+  @keyframes slideInUp  { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes slideOutUp { from { transform: translateY(0); }    to { transform: translateY(-100%); } }
 
   /* Zoom */
-  .enter-zoom { animation: zoomEnter var(--spd) ease both; }
-  .leave-zoom { animation: fadeOut  var(--spd) ease both; }
-  @keyframes zoomEnter { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: scale(1); } }
+  .enter-zoom { animation: zoomIn  var(--spd) ease both; }
+  .leave-zoom { animation: fadeOut var(--spd) ease both; }
+  @keyframes zoomIn { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: scale(1); } }
 
   /* Cut */
   .enter-none { opacity: 1; }
   .leave-none { opacity: 0; }
 
-  /* Progress bar */
   .progress-bar {
     position: fixed; bottom: 0; left: 0; height: 3px;
     background: rgba(255,255,255,0.6);
@@ -55,51 +52,62 @@ const DISPLAY_STYLES = `
   }
 `;
 
+/*
+ * Each entry in `layers` has a STABLE `id` that never changes while
+ * the slide is visible. Only the `phase` field changes (entering →
+ * stable → leaving), so React updates the className in-place instead
+ * of remounting — which is what allows CSS animations to play.
+ */
+
+let layerCounter = 0;
+const makeLayer = (item, phase) => ({ item, phase, id: `layer-${layerCounter++}` });
+
 export default function Display() {
-  const [slides, setSlides]     = useState([]);
-  const [config, setConfig]     = useState({
-    transition: 'fade', slide_duration: 8,
-    transition_speed: 800, loop: true, show_progress: true
-  });
-  // currentIdx  = the slide currently visible (or leaving)
-  // incomingIdx = the slide animating in (null when idle)
-  const [currentIdx, setCurrentIdx]   = useState(0);
-  const [incomingIdx, setIncomingIdx] = useState(null);
+  const [layers, setLayers]           = useState([]);   // active slide layers
+  const [slides, setSlides]           = useState([]);
+  const [config, setConfig]           = useState({ transition: 'fade', slide_duration: 8, transition_speed: 800, loop: true, show_progress: true });
   const [progress, setProgress]       = useState(0);
   const [schedName, setSchedName]     = useState(null);
-  const [lastTimestamp, setLastTimestamp] = useState(null);
+  const [lastHash, setLastHash]       = useState(null);
 
   const slidesRef      = useRef([]);
   const configRef      = useRef(config);
   const currentIdxRef  = useRef(0);
-  const busyRef        = useRef(false); // true while transition is running
+  const busyRef        = useRef(false);
   const timerRef       = useRef(null);
   const progressRef    = useRef(null);
-  const transitionRef  = useRef(null);
 
-  useEffect(() => { slidesRef.current  = slides;  }, [slides]);
-  useEffect(() => { configRef.current  = config;  }, [config]);
-  useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
+  useEffect(() => { slidesRef.current = slides; }, [slides]);
+  useEffect(() => { configRef.current = config; }, [config]);
 
   // ── Fetch & poll ──────────────────────────────────────────
   const fetchSlideshow = useCallback(async () => {
     try {
       const res = await api.get('/slideshow/current');
-      const { media, config: cfg, timestamp } = res.data;
-      if (timestamp !== lastTimestamp) {
-        slidesRef.current    = media || [];
-        configRef.current    = cfg;
+      const { media, config: cfg, hash } = res.data;
+
+      if (hash !== lastHash) {
+        const items = media || [];
+        slidesRef.current   = items;
+        configRef.current   = cfg;
         currentIdxRef.current = 0;
-        busyRef.current      = false;
-        setSlides(media || []);
+        busyRef.current     = false;
+
+        setSlides(items);
         setConfig(cfg);
         setSchedName(cfg.schedule_name);
-        setLastTimestamp(timestamp);
-        setCurrentIdx(0);
-        setIncomingIdx(null);
+        setLastHash(hash);
+
+        // Show first slide immediately
+        if (items.length > 0) {
+          setLayers([makeLayer(items[0], 'entering')]);
+          setTimeout(() => {
+            setLayers(prev => prev.map(l => ({ ...l, phase: 'stable' })));
+          }, Number(cfg.transition_speed) || 800);
+        }
       }
     } catch (e) { console.error('Fetch error', e); }
-  }, [lastTimestamp]);
+  }, [lastHash]);
 
   useEffect(() => {
     fetchSlideshow();
@@ -117,33 +125,38 @@ export default function Display() {
     const next  = (cur + 1) % total;
     if (next === 0 && !configRef.current.loop) return;
 
-    const speed = Number(configRef.current.transition_speed) || 800;
+    const speed     = Number(configRef.current.transition_speed) || 800;
+    const nextItem  = slidesRef.current[next];
+
     busyRef.current = true;
+    currentIdxRef.current = next;
 
-    // Show the incoming slide (it will play its enter-* animation)
-    setIncomingIdx(next);
+    // Mark all existing layers as leaving, add new entering layer
+    setLayers(prev => [
+      ...prev.map(l => ({ ...l, phase: 'leaving' })),
+      makeLayer(nextItem, 'entering'),
+    ]);
 
-    clearTimeout(transitionRef.current);
-    transitionRef.current = setTimeout(() => {
-      // Swap: incoming becomes current, hide old slide
-      currentIdxRef.current = next;
-      setCurrentIdx(next);
-      setIncomingIdx(null);
+    // After animation: remove leaving layers, stabilise entering
+    setTimeout(() => {
+      setLayers(prev => prev
+        .filter(l => l.phase !== 'leaving')
+        .map(l => ({ ...l, phase: 'stable' }))
+      );
       busyRef.current = false;
     }, speed);
   }, []);
 
-  // ── Timer + progress bar ──────────────────────────────────
+  // ── Timer + progress ──────────────────────────────────────
   useEffect(() => {
-    if (slides.length === 0) return;
-    const slide = slides[currentIdx];
-    if (!slide || slide.type === 'video') return;
+    const currentItem = slidesRef.current[currentIdxRef.current];
+    if (!currentItem || currentItem.type === 'video') return;
 
     clearTimeout(timerRef.current);
     clearInterval(progressRef.current);
     setProgress(0);
 
-    const dur   = (Number(slide.duration) || Number(config.slide_duration) || 8) * 1000;
+    const dur   = (Number(currentItem.duration) || Number(configRef.current.slide_duration) || 8) * 1000;
     const start = Date.now();
 
     progressRef.current = setInterval(() => {
@@ -159,24 +172,19 @@ export default function Display() {
       clearTimeout(timerRef.current);
       clearInterval(progressRef.current);
     };
-  }, [currentIdx, slides, config.slide_duration, advance]);
+  // Re-run when layers change (i.e. after each advance completes)
+  }, [layers, advance]);
 
-  // ── Helpers ───────────────────────────────────────────────
-  const t       = config.transition || 'fade';
-  const speed   = Number(config.transition_speed) || 800;
-  const current = slides[currentIdx];
-  const incoming = incomingIdx !== null ? slides[incomingIdx] : null;
+  // ── Render ─────────────────────────────────────────────────
+  const t     = config.transition || 'fade';
+  const speed = Number(config.transition_speed) || 800;
 
-  // Keys are FIXED ('a' and 'b') so React never unmounts/remounts the divs.
-  // We swap which key is on top and change the src, letting the CSS animation play.
   const renderMedia = (item) => {
     if (!item) return null;
     const src = `/uploads/${item.filename}`;
     if (item.type === 'video') {
-      return (
-        <video key={item.id} src={src} autoPlay muted={false} onEnded={advance}
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-      );
+      return <video key={item.id} src={src} autoPlay muted={false} onEnded={advance}
+        style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
     }
     return <img key={item.id} src={src} alt={item.original_name} />;
   };
@@ -194,26 +202,30 @@ export default function Display() {
     );
   }
 
+  const isTransitioning = layers.some(l => l.phase === 'leaving');
+
   return (
     <>
       <style>{`${DISPLAY_STYLES} :root { --spd: ${speed}ms; }`}</style>
       <div className="slide-container">
 
-        {/* Current slide — plays leave animation when incomingIdx is set */}
-        <div className={`slide ${incoming ? `leave-${t}` : ''}`}>
-          {renderMedia(current)}
-        </div>
-
-        {/* Incoming slide — plays enter animation, sits on top */}
-        {incoming && (
-          <div className={`slide enter-${t}`} style={{ zIndex: 2 }}>
-            {renderMedia(incoming)}
+        {layers.map(({ item, phase, id }, i) => (
+          /*
+           * The key `id` is STABLE — it never changes while this layer
+           * is alive. Phase changes only update the className in place,
+           * so the browser fires the CSS animation without a remount.
+           */
+          <div
+            key={id}
+            className={`slide ${phase === 'entering' ? `enter-${t}` : phase === 'leaving' ? `leave-${t}` : ''}`}
+            style={{ zIndex: i }}
+          >
+            {renderMedia(item)}
           </div>
-        )}
+        ))}
 
-        {/* Progress bar */}
-        {config.show_progress && !incoming && current?.type !== 'video' && (
-          <div className="progress-bar" style={{ width: `${progress}%`, transition: 'width 50ms linear', zIndex: 3 }} />
+        {config.show_progress && !isTransitioning && layers[0]?.item?.type !== 'video' && (
+          <div className="progress-bar" style={{ width: `${progress}%`, transition: 'width 50ms linear', zIndex: 99 }} />
         )}
 
         {schedName && <div className="sched-label">{schedName}</div>}

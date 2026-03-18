@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { getDb } = require('../db/database');
 
 const router = express.Router();
@@ -73,7 +74,15 @@ router.get('/current', (req, res) => {
     };
   }
 
-  res.json({ media, config, timestamp: Date.now() });
+  // Stable hash — only changes when content actually changes.
+  // Using Date.now() would reset the display every 30 seconds.
+  const hash = crypto
+    .createHash('md5')
+    .update(JSON.stringify({ ids: media.map(m => m.id), config }))
+    .digest('hex')
+    .slice(0, 12);
+
+  res.json({ media, config, hash });
 });
 
 module.exports = router;
