@@ -69,24 +69,29 @@ export default function Display() {
   const [schedName, setSchedName]         = useState(null);
   const [lastTimestamp, setLastTimestamp] = useState(null);
 
-  const timerRef      = useRef(null);
-  const progressRef   = useRef(null);
-  const transitionRef = useRef(null);
-  const slidesRef     = useRef(slides);
-  const configRef     = useRef(config);
+  // Refs — so advance() never captures stale closure values
+  const slidesRef       = useRef([]);
+  const configRef       = useRef(config);
+  const currentIdxRef   = useRef(0);
   const transitioningRef = useRef(false);
+  const timerRef        = useRef(null);
+  const progressRef     = useRef(null);
+  const transitionRef   = useRef(null);
 
-  // Keep refs in sync so advance() doesn't capture stale state
-  useEffect(() => { slidesRef.current = slides; }, [slides]);
-  useEffect(() => { configRef.current = config; }, [config]);
-  useEffect(() => { transitioningRef.current = transitioning; }, [transitioning]);
+  useEffect(() => { slidesRef.current = slides; },    [slides]);
+  useEffect(() => { configRef.current = config; },    [config]);
+  useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
 
-  // Fetch current slideshow every 30 seconds
+  // ── Fetch slideshow (polls every 30s) ──────────────────────
   const fetchSlideshow = useCallback(async () => {
     try {
       const res = await api.get('/slideshow/current');
       const { media, config: cfg, timestamp } = res.data;
       if (timestamp !== lastTimestamp) {
+        slidesRef.current = media || [];
+        configRef.current = cfg;
+        currentIdxRef.current = 0;
+        transitioningRef.current = false;
         setSlides(media || []);
         setConfig(cfg);
         setSchedName(cfg.schedule_name);
@@ -106,33 +111,35 @@ export default function Display() {
     return () => clearInterval(poll);
   }, [fetchSlideshow]);
 
-  // Advance to the next slide
+  // ── Advance to next slide ──────────────────────────────────
   const advance = useCallback(() => {
     if (transitioningRef.current) return;
     const total = slidesRef.current.length;
     if (total <= 1) return;
 
-    setCurrentIdx(cur => {
-      const next = (cur + 1) % total;
-      if (next === 0 && !configRef.current.loop) return cur;
+    const cur  = currentIdxRef.current;
+    const next = (cur + 1) % total;
+    if (next === 0 && !configRef.current.loop) return;
 
-      const speed = Number(configRef.current.transition_speed) || 800;
+    const speed = Number(configRef.current.transition_speed) || 800;
 
-      setNextIdx(next);
-      setTransitioning(true);
+    // Mark as transitioning immediately via ref (guards against double-call)
+    transitioningRef.current = true;
 
-      clearTimeout(transitionRef.current);
-      transitionRef.current = setTimeout(() => {
-        setCurrentIdx(next);
-        setNextIdx(null);
-        setTransitioning(false);
-      }, speed);
+    setNextIdx(next);
+    setTransitioning(true);
 
-      return cur;
-    });
-  }, []);
+    clearTimeout(transitionRef.current);
+    transitionRef.current = setTimeout(() => {
+      currentIdxRef.current = next;
+      transitioningRef.current = false;
+      setCurrentIdx(next);
+      setNextIdx(null);
+      setTransitioning(false);
+    }, speed);
+  }, []); // stable — reads everything from refs
 
-  // Auto-advance timer + progress bar
+  // ── Auto-advance timer + progress bar ─────────────────────
   useEffect(() => {
     if (slides.length === 0) return;
     const current = slides[currentIdx];
@@ -142,7 +149,7 @@ export default function Display() {
     clearInterval(progressRef.current);
     setProgress(0);
 
-    const dur = (Number(current.duration) || Number(config.slide_duration) || 8) * 1000;
+    const dur   = (Number(current.duration) || Number(config.slide_duration) || 8) * 1000;
     const start = Date.now();
 
     progressRef.current = setInterval(() => {
@@ -158,19 +165,19 @@ export default function Display() {
       clearTimeout(timerRef.current);
       clearInterval(progressRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIdx, slides, config.slide_duration]);
+  }, [currentIdx, slides, config.slide_duration, advance]);
 
+  // ── Render ─────────────────────────────────────────────────
   const t        = config.transition || 'fade';
   const speed    = Number(config.transition_speed) || 800;
   const current  = slides[currentIdx];
   const incoming = nextIdx !== null ? slides[nextIdx] : null;
 
-  const renderSlide = (item, className) => {
+  const renderSlide = (item, cls) => {
     if (!item) return null;
     const src = `/uploads/${item.filename}`;
     return (
-      <div key={`${item.id}-${className}`} className={`slide ${className}`}>
+      <div key={`${item.id}-${cls}`} className={`slide ${cls}`}>
         {item.type === 'video'
           ? <video src={src} autoPlay muted={false} onEnded={advance}
               style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
@@ -198,10 +205,10 @@ export default function Display() {
       <style>{`${DISPLAY_STYLES} :root { --spd: ${speed}ms; }`}</style>
       <div className="slide-container">
 
-        {/* Current slide — animates OUT when transitioning */}
+        {/* Current slide — leaves during transition */}
         {current && renderSlide(current, transitioning ? `leave-${t}` : '')}
 
-        {/* Incoming slide — animates IN during transition */}
+        {/* Incoming slide — enters during transition */}
         {transitioning && incoming && renderSlide(incoming, `enter-${t}`)}
 
         {/* Progress bar */}
@@ -209,7 +216,6 @@ export default function Display() {
           <div className="progress-bar" style={{ width: `${progress}%`, transition: 'width 50ms linear' }} />
         )}
 
-        {/* Active schedule name */}
         {schedName && <div className="sched-label">{schedName}</div>}
       </div>
     </>
