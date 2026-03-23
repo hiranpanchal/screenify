@@ -56,6 +56,16 @@ function initSchema() {
     );
   `);
 
+  // Add source column to media if it doesn't exist (migration)
+  try {
+    db.exec(`ALTER TABLE media ADD COLUMN source TEXT DEFAULT 'manual'`);
+  } catch (e) { /* column already exists */ }
+
+  // Add mimetype column if missing (older DBs may lack it)
+  try {
+    db.exec(`ALTER TABLE media ADD COLUMN mimetype TEXT DEFAULT 'image/jpeg'`);
+  } catch (e) { /* already exists */ }
+
   // Insert default settings if they don't exist
   const defaults = {
     default_duration: '8',
@@ -64,6 +74,12 @@ function initSchema() {
     shuffle: 'false',
     loop: 'true',
     show_progress: 'true',
+    // Football automation
+    football_enabled: '0',
+    football_promo_text: 'MATCH DAY SPECIAL — PINTS £4 ALL GAME',
+    football_bar_logo: '',
+    football_active_media_id: '',
+    football_active_game_key: '',
   };
 
   const insertSetting = db.prepare(

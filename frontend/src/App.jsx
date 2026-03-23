@@ -5,6 +5,7 @@ import AdminLayout from './pages/AdminLayout';
 import MediaLibrary from './pages/MediaLibrary';
 import SlideshowSettings from './pages/SlideshowSettings';
 import ScheduleManager from './pages/ScheduleManager';
+import Automations from './pages/Automations';
 import Display from './pages/Display';
 
 function ProtectedRoute({ children }) {
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="media" element={<MediaLibrary />} />
             <Route path="settings" element={<SlideshowSettings />} />
             <Route path="schedules" element={<ScheduleManager />} />
+            <Route path="automations" element={<Automations />} />
           </Route>
           <Route path="*" element={<Navigate to="/admin/media" replace />} />
         </Routes>

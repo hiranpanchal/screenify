@@ -8,6 +8,7 @@ const mediaRoutes = require('./routes/media');
 const settingsRoutes = require('./routes/settings');
 const schedulesRoutes = require('./routes/schedules');
 const slideshowRoutes = require('./routes/slideshow');
+const automationsRoutes = require('./routes/automations');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -29,6 +30,7 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/schedules', schedulesRoutes);
 app.use('/api/slideshow', slideshowRoutes);
+app.use('/api/automations', automationsRoutes);
 
 // ── Health check ────────────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
@@ -49,4 +51,9 @@ app.use((err, req, res, next) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Screenifi running on http://0.0.0.0:${PORT}`);
   console.log(`📁 Uploads served at http://0.0.0.0:${PORT}/uploads`);
+
+  // Start football automation after DB is initialised
+  const { getDb } = require('./db/database');
+  const automation = require('./services/automationManager');
+  automation.init(getDb());
 });

@@ -3,6 +3,11 @@ import { useAuth } from '../context/AuthContext';
 
 // Simple inline SVG icons
 const Icons = {
+  Automation: () => (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <path d="M8.5 1.5L3 8.5h4l-1 5 5.5-7h-4l1-5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+    </svg>
+  ),
   Media: () => (
     <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
       <rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
@@ -39,9 +44,10 @@ const Icons = {
 };
 
 const NAV = [
-  { to: '/admin/media',     label: 'Media Library',  Icon: Icons.Media },
-  { to: '/admin/settings',  label: 'Slideshow',       Icon: Icons.Settings },
-  { to: '/admin/schedules', label: 'Schedules',       Icon: Icons.Schedule },
+  { to: '/admin/media',        label: 'Media Library',  Icon: Icons.Media },
+  { to: '/admin/settings',     label: 'Slideshow',      Icon: Icons.Settings },
+  { to: '/admin/schedules',    label: 'Schedules',      Icon: Icons.Schedule },
+  { to: '/admin/automations',  label: 'Automations',    Icon: Icons.Automation },
 ];
 
 export default function AdminLayout() {
