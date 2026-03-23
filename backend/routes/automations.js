@@ -5,7 +5,7 @@ const fs       = require('fs');
 const { requireAuth: auth } = require('../middleware/authMiddleware');
 const { getDb }  = require('../db/database');
 const automation = require('../services/automationManager');
-const { SPORTS_CONFIG, getTodaysGames } = require('../services/sportsService');
+const { SPORTS_CONFIG, getTodaysGames, getUpcomingGames } = require('../services/sportsService');
 
 const router = express.Router();
 const upload = multer({
@@ -96,6 +96,83 @@ router.get('/fixtures/:key', auth, async (req, res) => {
       isLive:   g.isLive,
       isFinished: g.isFinished,
     })));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/automations/upcoming/:key — next 7 days of fixtures for a sport
+router.get('/upcoming/:key', auth, async (req, res) => {
+  const sport = SPORTS_CONFIG.find(s => s.key === req.params.key);
+  if (!sport) return res.status(404).json({ error: 'Unknown sport' });
+  try {
+    const games = await getUpcomingGames(sport.espnEndpoint, 7);
+    const db    = getDb();
+    const pins  = db.prepare('SELECT game_id FROM pinned_games WHERE sport_key = ?').all(sport.key);
+    const pinnedIds = new Set(pins.map(p => p.game_id));
+
+    res.json(games.map(g => ({
+      id:         g.id,
+      home:       g.homeTeam,
+      away:       g.awayTeam,
+      homeBadge:  g.homeBadgeUrl,
+      awayBadge:  g.awayBadgeUrl,
+      startTime:  g.startTime,
+      isLive:     g.isLive,
+      isPinned:   pinnedIds.has(g.id),
+      timeLabel:  g.startTime ? new Date(g.startTime).toLocaleTimeString('en-GB', {
+        hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London',
+      }) : '',
+      dateLabel: g.startTime ? new Date(g.startTime).toLocaleDateString('en-GB', {
+        weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London',
+      }) : '',
+    })));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/automations/pins — all pinned games
+router.get('/pins', auth, (req, res) => {
+  const db   = getDb();
+  const pins = db.prepare('SELECT * FROM pinned_games ORDER BY start_time ASC').all();
+  res.json(pins);
+});
+
+// POST /api/automations/pin — pin an upcoming game
+router.post('/pin', auth, async (req, res) => {
+  const { sportKey, gameId, homeTeam, awayTeam, homeBadgeUrl, awayBadgeUrl, startTime } = req.body;
+  const sport = SPORTS_CONFIG.find(s => s.key === sportKey);
+  if (!sport) return res.status(400).json({ error: 'Unknown sport' });
+
+  const db = getDb();
+  const existing = db.prepare('SELECT id FROM pinned_games WHERE game_id = ? AND sport_key = ?').get(gameId, sportKey);
+  if (existing) return res.json({ id: existing.id, already: true });
+
+  const { v4: uuidv4 } = require('uuid');
+  const pinId = uuidv4();
+
+  db.prepare(`
+    INSERT INTO pinned_games (id, sport_key, game_id, home_team, away_team, home_badge_url, away_badge_url, league_badge_url, start_time)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(pinId, sportKey, gameId, homeTeam, awayTeam, homeBadgeUrl || '', awayBadgeUrl || '', sport.leagueBadge, startTime);
+
+  // Generate graphic immediately
+  try {
+    const pin = db.prepare('SELECT * FROM pinned_games WHERE id = ?').get(pinId);
+    await automation.generatePinnedGraphic(pin);
+  } catch (e) {
+    console.error('[Pin] Graphic generation failed:', e.message);
+  }
+
+  res.json({ id: pinId });
+});
+
+// DELETE /api/automations/pin/:id — unpin a game
+router.delete('/pin/:id', auth, async (req, res) => {
+  try {
+    await automation.removePinnedGame(req.params.id);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

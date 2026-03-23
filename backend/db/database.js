@@ -42,6 +42,21 @@ function initSchema() {
       value TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS pinned_games (
+      id TEXT PRIMARY KEY,
+      sport_key TEXT NOT NULL,
+      game_id TEXT NOT NULL,
+      home_team TEXT NOT NULL,
+      away_team TEXT NOT NULL,
+      home_badge_url TEXT,
+      away_badge_url TEXT,
+      league_badge_url TEXT,
+      start_time TEXT NOT NULL,
+      media_id TEXT,
+      graphic_mode TEXT DEFAULT 'upcoming',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS schedules (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,

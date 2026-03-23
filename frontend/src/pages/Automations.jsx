@@ -23,12 +23,16 @@ function Toggle({ on, onChange }) {
   );
 }
 
-function SportCard({ sport, activeSport, barLogo, onUpdate }) {
-  const [promoText, setPromoText]     = useState(sport.promoText);
-  const [expanded, setExpanded]       = useState(false);
-  const [fixtures, setFixtures]       = useState(null);
-  const [loadingFix, setLoadingFix]   = useState(false);
-  const [saving, setSaving]           = useState(false);
+function SportCard({ sport, activeSport, onUpdate, onFlash, onPinsChanged }) {
+  const [promoText, setPromoText]       = useState(sport.promoText);
+  const [expanded, setExpanded]         = useState(false);
+  const [tab, setTab]                   = useState('today'); // 'today' | 'upcoming'
+  const [fixtures, setFixtures]         = useState(null);
+  const [upcoming, setUpcoming]         = useState(null);
+  const [loadingFix, setLoadingFix]     = useState(false);
+  const [loadingUp, setLoadingUp]       = useState(false);
+  const [pinning, setPinning]           = useState({}); // gameId → bool
+  const [saving, setSaving]             = useState(false);
   const isActive = activeSport === sport.key;
 
   async function toggle() {
@@ -42,14 +46,56 @@ function SportCard({ sport, activeSport, barLogo, onUpdate }) {
   }
 
   async function loadFixtures() {
-    if (fixtures !== null) { setExpanded(e => !e); return; }
-    setExpanded(true);
+    if (!expanded) {
+      setExpanded(true);
+      if (!fixtures) fetchToday();
+    } else {
+      setExpanded(false);
+    }
+  }
+
+  async function fetchToday() {
     setLoadingFix(true);
     try {
       const res = await api.get(`/automations/fixtures/${sport.key}`);
       setFixtures(res.data);
     } catch { setFixtures([]); }
     finally { setLoadingFix(false); }
+  }
+
+  async function fetchUpcoming() {
+    setLoadingUp(true);
+    try {
+      const res = await api.get(`/automations/upcoming/${sport.key}`);
+      setUpcoming(res.data);
+    } catch { setUpcoming([]); }
+    finally { setLoadingUp(false); }
+  }
+
+  async function switchTab(t) {
+    setTab(t);
+    if (t === 'upcoming' && !upcoming) fetchUpcoming();
+    if (t === 'today'    && !fixtures)  fetchToday();
+  }
+
+  async function pinGame(game) {
+    setPinning(p => ({ ...p, [game.id]: true }));
+    try {
+      await api.post('/automations/pin', {
+        sportKey:     sport.key,
+        gameId:       game.id,
+        homeTeam:     game.home,
+        awayTeam:     game.away,
+        homeBadgeUrl: game.homeBadge,
+        awayBadgeUrl: game.awayBadge,
+        startTime:    game.startTime,
+      });
+      // Mark as pinned locally
+      setUpcoming(prev => prev.map(g => g.id === game.id ? { ...g, isPinned: true } : g));
+      onFlash('success', `📌 Advertising ${game.home} vs ${game.away}`);
+      onPinsChanged();
+    } catch { onFlash('error', 'Pin failed'); }
+    finally { setPinning(p => ({ ...p, [game.id]: false })); }
   }
 
   return (
@@ -116,35 +162,78 @@ function SportCard({ sport, activeSport, barLogo, onUpdate }) {
             className="btn btn-ghost btn-sm"
             style={{ fontSize: '12px' }}
           >
-            {expanded ? 'Hide' : 'View'} today's fixtures
+            {expanded ? 'Hide fixtures' : 'View fixtures'}
           </button>
 
           {expanded && (
-            <div style={{ marginTop: '10px' }}>
-              {loadingFix ? (
-                <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Loading…</div>
-              ) : fixtures && fixtures.length === 0 ? (
-                <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>No games today</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  {(fixtures || []).map(f => (
-                    <div key={f.id} style={{
-                      background: 'var(--surface)', border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-sm)', padding: '8px 12px',
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      fontSize: '12.5px',
-                    }}>
-                      <span><strong>{f.home}</strong> <span style={{ color: 'var(--text-muted)' }}>vs</span> <strong>{f.away}</strong></span>
-                      {f.isLive ? (
-                        <span style={{ color: '#dc2626', fontWeight: '700', fontSize: '11px' }}>LIVE</span>
-                      ) : f.isFinished ? (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>FT</span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)' }}>{f.time || '—'}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+            <div style={{ marginTop: '12px' }}>
+              {/* Tabs */}
+              <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
+                {['today', 'upcoming'].map(t => (
+                  <button key={t} onClick={() => switchTab(t)} style={{
+                    padding: '4px 12px', fontSize: '12px', fontWeight: '500',
+                    borderRadius: '20px', border: '1px solid var(--border)',
+                    background: tab === t ? 'var(--accent)' : 'transparent',
+                    color: tab === t ? '#fff' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}>
+                    {t === 'today' ? 'Today' : 'Upcoming (7 days)'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Today */}
+              {tab === 'today' && (
+                loadingFix ? <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Loading…</div>
+                : (fixtures || []).length === 0 ? <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>No games today</div>
+                : <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {(fixtures || []).map(f => (
+                      <div key={f.id} style={{
+                        background: 'var(--surface)', border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)', padding: '8px 12px',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px',
+                      }}>
+                        <span><strong>{f.home}</strong> <span style={{ color: 'var(--text-muted)' }}>vs</span> <strong>{f.away}</strong></span>
+                        {f.isLive ? <span style={{ color: '#dc2626', fontWeight: '700', fontSize: '11px' }}>LIVE</span>
+                          : f.isFinished ? <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>FT</span>
+                          : <span style={{ color: 'var(--text-muted)' }}>{f.time || '—'}</span>}
+                      </div>
+                    ))}
+                  </div>
+              )}
+
+              {/* Upcoming */}
+              {tab === 'upcoming' && (
+                loadingUp ? <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Loading…</div>
+                : (upcoming || []).length === 0 ? <div style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>No upcoming games found</div>
+                : <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {(upcoming || []).map(g => (
+                      <div key={g.id} style={{
+                        background: 'var(--surface)', border: `1px solid ${g.isPinned ? '#d97706' : 'var(--border)'}`,
+                        borderRadius: 'var(--radius-sm)', padding: '8px 12px',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px',
+                      }}>
+                        <div>
+                          <div><strong>{g.home}</strong> <span style={{ color: 'var(--text-muted)' }}>vs</span> <strong>{g.away}</strong></div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{g.dateLabel}  ·  {g.timeLabel}</div>
+                        </div>
+                        <button
+                          onClick={() => pinGame(g)}
+                          disabled={g.isPinned || pinning[g.id]}
+                          style={{
+                            padding: '4px 12px', fontSize: '11.5px', fontWeight: '600',
+                            borderRadius: '6px', border: '1px solid',
+                            borderColor: g.isPinned ? '#d97706' : 'var(--accent)',
+                            color: g.isPinned ? '#d97706' : 'var(--accent)',
+                            background: 'transparent', cursor: g.isPinned ? 'default' : 'pointer',
+                            flexShrink: 0, marginLeft: '10px',
+                          }}
+                        >
+                          {pinning[g.id] ? '…' : g.isPinned ? '📌 Pinned' : '+ Advertise'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
               )}
             </div>
           )}
@@ -162,9 +251,11 @@ export default function Automations() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [triggering, setTriggering]   = useState(false);
   const [toast, setToast]             = useState(null);
+  const [pins, setPins]               = useState([]);
+  const [removingPin, setRemovingPin] = useState({});
   const logoRef = useRef();
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); loadPins(); }, []);
 
   async function load() {
     try {
@@ -174,6 +265,13 @@ export default function Automations() {
       setActiveSport(res.data.activeSport);
       setActiveMediaId(res.data.activeMediaId);
     } catch { flash('error', 'Failed to load'); }
+  }
+
+  async function loadPins() {
+    try {
+      const res = await api.get('/automations/pins');
+      setPins(res.data);
+    } catch { /* silent */ }
   }
 
   function flash(type, msg) {
@@ -215,6 +313,26 @@ export default function Automations() {
       setTimeout(load, 2000);
     } catch { flash('error', 'Trigger failed'); }
     finally { setTriggering(false); }
+  }
+
+  async function removePin(pinId) {
+    setRemovingPin(r => ({ ...r, [pinId]: true }));
+    try {
+      await api.delete(`/automations/pin/${pinId}`);
+      setPins(prev => prev.filter(p => p.id !== pinId));
+      flash('success', 'Removed from advertising schedule');
+    } catch { flash('error', 'Failed to remove'); }
+    finally { setRemovingPin(r => ({ ...r, [pinId]: false })); }
+  }
+
+  function formatPinDate(startTime) {
+    const d = new Date(startTime);
+    const now = new Date();
+    const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
+    const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
+    if (d.toDateString() === now.toDateString()) return `Tonight · ${timeStr}`;
+    if (d.toDateString() === tomorrow.toDateString()) return `Tomorrow · ${timeStr}`;
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' }) + ` · ${timeStr}`;
   }
 
   const anyEnabled = sports.some(s => s.enabled);
@@ -301,6 +419,52 @@ export default function Automations() {
           onChange={e => uploadLogo(e.target.files[0])} />
       </div>
 
+      {/* Currently advertising */}
+      {pins.length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-subtle)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>
+            Currently Advertising
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {pins.map(pin => (
+              <div key={pin.id} style={{
+                background: 'var(--surface)', border: '1px solid #d97706',
+                borderRadius: 'var(--radius)', padding: '12px 16px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{
+                    background: 'rgba(217,119,6,0.12)', color: '#d97706',
+                    fontSize: '10px', fontWeight: '700', padding: '2px 8px',
+                    borderRadius: '10px', letterSpacing: '0.05em',
+                  }}>UPCOMING</span>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '600' }}>
+                      {pin.home_team} <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>vs</span> {pin.away_team}
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                      {formatPinDate(pin.start_time)}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => removePin(pin.id)}
+                  disabled={removingPin[pin.id]}
+                  style={{
+                    padding: '4px 12px', fontSize: '12px', fontWeight: '500',
+                    borderRadius: '6px', border: '1px solid var(--border)',
+                    color: 'var(--text-muted)', background: 'transparent',
+                    cursor: 'pointer', flexShrink: 0,
+                  }}
+                >
+                  {removingPin[pin.id] ? '…' : 'Remove'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Sport cards */}
       <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-subtle)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>
         Sports
@@ -313,6 +477,8 @@ export default function Automations() {
             activeSport={activeSport}
             barLogo={barLogo}
             onUpdate={handleSportUpdate}
+            onFlash={flash}
+            onPinsChanged={loadPins}
           />
         ))}
       </div>

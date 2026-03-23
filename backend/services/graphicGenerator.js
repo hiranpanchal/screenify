@@ -69,11 +69,37 @@ function drawImageFit(ctx, img, cx, cy, size) {
 
 // ── Main generator ───────────────────────────────────────────────
 
+/**
+ * Generates a human-readable date badge label for upcoming games.
+ * e.g. "TONIGHT  20:00" / "TOMORROW  15:00" / "SAT  12:30"
+ */
+function buildDateLabel(startTime) {
+  const now      = new Date();
+  const game     = new Date(startTime);
+  const todayDay = now.toDateString();
+  const gameDayStr = game.toDateString();
+
+  const timeStr = game.toLocaleTimeString('en-GB', {
+    hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London',
+  });
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  if (gameDayStr === todayDay) return `TONIGHT  ${timeStr}`;
+  if (gameDayStr === tomorrow.toDateString()) return `TOMORROW  ${timeStr}`;
+
+  const dayName = game.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'Europe/London' }).toUpperCase();
+  return `${dayName}  ${timeStr}`;
+}
+
 async function generateMatchGraphic({
   homeTeam, awayTeam,
   homeBadgeUrl, awayBadgeUrl,
   leagueBadgeUrl,
   kickoffTime, isLive,
+  mode = 'live',   // 'live' | 'upcoming'
+  startTime,       // Date object — used for upcoming badge label
   promoText,
   barLogoPath,
 }) {
@@ -131,19 +157,35 @@ async function generateMatchGraphic({
   drawImageFit(ctx, plBadge,   W / 2,           badgeCY, plSize);
   drawImageFit(ctx, awayBadge, W / 2 + spread,  badgeCY, badgeSize);
 
-  // ── LIVE / KO pill ──────────────────────────────────────────
-  const pillW = 160, pillH = 48, pillY = badgeCY - badgeSize / 2 - 80;
+  // ── Status pill (LIVE / KO time / Coming Up) ─────────────────
+  const pillH = 48, pillY = badgeCY - badgeSize / 2 - 80;
   ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
   if (isLive) {
+    const pillW = 160;
     ctx.fillStyle = '#dc2626';
     roundRect(ctx, W / 2 - pillW / 2, pillY, pillW, pillH, 24);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 22px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
     ctx.fillText('⬤  LIVE', W / 2, pillY + pillH / 2);
+  } else if (mode === 'upcoming' && startTime) {
+    const label  = buildDateLabel(startTime);
+    const pillW  = Math.max(280, label.length * 16 + 60);
+    // Amber/gold pill for upcoming games
+    ctx.fillStyle = 'rgba(217,119,6,0.18)';
+    roundRect(ctx, W / 2 - pillW / 2, pillY, pillW, pillH, 24);
+    ctx.fill();
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(label, W / 2, pillY + pillH / 2);
   } else if (kickoffTime) {
+    const pillW = 200;
     ctx.fillStyle = 'rgba(47,128,237,0.18)';
     roundRect(ctx, W / 2 - pillW / 2, pillY, pillW, pillH, 24);
     ctx.fill();
@@ -152,8 +194,6 @@ async function generateMatchGraphic({
     ctx.stroke();
     ctx.fillStyle = '#2F80ED';
     ctx.font = 'bold 22px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
     ctx.fillText(`KO  ${kickoffTime}`, W / 2, pillY + pillH / 2);
   }
   ctx.restore();

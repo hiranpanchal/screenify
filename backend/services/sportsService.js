@@ -200,4 +200,47 @@ async function getTodaysGames(espnEndpoint) {
   return fetchESPNScoreboard(espnEndpoint);
 }
 
-module.exports = { SPORTS_CONFIG, getActiveGamesForSport, getTodaysGames };
+/**
+ * Returns upcoming (not yet started) games for the next `daysAhead` days.
+ */
+async function getUpcomingGames(espnEndpoint, daysAhead = 7) {
+  const results = [];
+  // Also include today's not-yet-started games
+  for (let i = 0; i <= daysAhead; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+    const url = `https://site.api.espn.com/apis/site/v2/sports/${espnEndpoint}/scoreboard?dates=${dateStr}`;
+    const day = await fetchESPNScoreboardByUrl(url).catch(() => []);
+    results.push(...day.filter(g => !g.isFinished));
+  }
+  // Deduplicate by id
+  const seen = new Set();
+  return results.filter(g => { if (seen.has(g.id)) return false; seen.add(g.id); return true; });
+}
+
+async function fetchESPNScoreboardByUrl(url) {
+  const data   = await fetchJSON(url);
+  const events = data.events || [];
+  return events.map(event => {
+    const comp        = (event.competitions || [])[0] || {};
+    const competitors = comp.competitors || [];
+    const home        = competitors.find(c => c.homeAway === 'home') || competitors[0] || {};
+    const away        = competitors.find(c => c.homeAway === 'away') || competitors[1] || {};
+    const status      = comp.status || {};
+    const stateType   = (status.type || {}).state || 'pre';
+    return {
+      id:           event.id,
+      homeTeam:     (home.team || {}).displayName || 'Home',
+      awayTeam:     (away.team || {}).displayName || 'Away',
+      homeBadgeUrl: (home.team || {}).logo || null,
+      awayBadgeUrl: (away.team || {}).logo || null,
+      startTime:    new Date(comp.date || event.date),
+      state:        stateType,
+      isLive:       stateType === 'in',
+      isFinished:   stateType === 'post',
+    };
+  });
+}
+
+module.exports = { SPORTS_CONFIG, getActiveGamesForSport, getTodaysGames, getUpcomingGames };
