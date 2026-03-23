@@ -135,10 +135,12 @@ function SportCard({ sport, activeSport, barLogo, onUpdate }) {
                       fontSize: '12.5px',
                     }}>
                       <span><strong>{f.home}</strong> <span style={{ color: 'var(--text-muted)' }}>vs</span> <strong>{f.away}</strong></span>
-                      {f.status === 'In Progress' || f.status === '1H' || f.status === 'HT' || f.status === '2H' ? (
+                      {f.isLive ? (
                         <span style={{ color: '#dc2626', fontWeight: '700', fontSize: '11px' }}>LIVE</span>
+                      ) : f.isFinished ? (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>FT</span>
                       ) : (
-                        <span style={{ color: 'var(--text-muted)' }}>{(f.time || '').slice(0, 5)}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{f.time || '—'}</span>
                       )}
                     </div>
                   ))}

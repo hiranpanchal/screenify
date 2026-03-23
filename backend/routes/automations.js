@@ -87,14 +87,14 @@ router.get('/fixtures/:key', auth, async (req, res) => {
   const sport = SPORTS_CONFIG.find(s => s.key === req.params.key);
   if (!sport) return res.status(404).json({ error: 'Unknown sport' });
   try {
-    const games = await getTodaysGames(sport.league);
+    const games = await getTodaysGames(sport.espnEndpoint);
     res.json(games.map(g => ({
-      id:     g.idEvent,
-      home:   g.strHomeTeam,
-      away:   g.strAwayTeam,
-      time:   g.strTime,
-      date:   g.dateEvent,
-      status: g.strStatus,
+      id:       g.id,
+      home:     g.homeTeam,
+      away:     g.awayTeam,
+      time:     g.startTime ? new Date(g.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' }) : '',
+      isLive:   g.isLive,
+      isFinished: g.isFinished,
     })));
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -62,7 +62,7 @@ async function runCheck() {
 async function ensureGraphicForGame(sport, game) {
   const activeKey     = getSetting('automation_active_game_key');
   const activeMediaId = getSetting('automation_active_media_id');
-  const gameUniqueKey = `${sport.key}:${game.idEvent}`;
+  const gameUniqueKey = `${sport.key}:${game.id}`;
 
   // Already showing this exact game and file still exists
   if (activeKey === gameUniqueKey && activeMediaId) {
@@ -78,26 +78,24 @@ async function ensureGraphicForGame(sport, game) {
   const barLogoFile = getSetting('automation_bar_logo');
   const barLogoPath = barLogoFile ? path.join(__dirname, '../uploads', barLogoFile) : null;
 
-  const isLive = !!(
-    game.intHomeScore !== null ||
-    ['In Progress', '1H', 'HT', '2H', 'ET', 'PEN'].includes(game.strStatus)
-  );
+  const isLive = game.isLive || false;
 
   let kickoffTime = '';
-  if (game.strTime && game.dateEvent) {
+  if (game.startTime) {
     try {
-      kickoffTime = new Date(`${game.dateEvent}T${game.strTime}Z`)
-        .toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
-    } catch { kickoffTime = (game.strTime || '').slice(0, 5); }
+      kickoffTime = new Date(game.startTime).toLocaleTimeString('en-GB', {
+        hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London',
+      });
+    } catch { /* skip */ }
   }
 
-  console.log(`[Automation] Generating ${sport.name} graphic: ${game.strHomeTeam} vs ${game.strAwayTeam}`);
+  console.log(`[Automation] Generating ${sport.name} graphic: ${game.homeTeam} vs ${game.awayTeam}`);
 
   const { filename } = await generateMatchGraphic({
-    homeTeam:     game.strHomeTeam,
-    awayTeam:     game.strAwayTeam,
-    homeBadgeUrl: game.strHomeTeamBadge,
-    awayBadgeUrl: game.strAwayTeamBadge,
+    homeTeam:       game.homeTeam,
+    awayTeam:       game.awayTeam,
+    homeBadgeUrl:   game.homeBadgeUrl,
+    awayBadgeUrl:   game.awayBadgeUrl,
     leagueBadgeUrl: sport.leagueBadge,
     kickoffTime,
     isLive,
@@ -114,7 +112,7 @@ async function ensureGraphicForGame(sport, game) {
   db.prepare(`
     INSERT INTO media (id, filename, original_name, mimetype, type, size, duration, sort_order, source)
     VALUES (?, ?, ?, 'image/png', 'image', ?, 30, 0, 'automation')
-  `).run(mediaId, filename, `${game.strHomeTeam} vs ${game.strAwayTeam}`, size);
+  `).run(mediaId, filename, `${game.homeTeam} vs ${game.awayTeam}`, size);
 
   setSetting('automation_active_media_id', mediaId);
   setSetting('automation_active_game_key', gameUniqueKey);
