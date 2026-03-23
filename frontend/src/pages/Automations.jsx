@@ -23,6 +23,85 @@ function Toggle({ on, onChange }) {
   );
 }
 
+function PreviewModal({ sport, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [result, setResult]   = useState(null);
+  const [error, setError]     = useState(null);
+
+  useEffect(() => {
+    api.post(`/automations/preview/${sport.key}`)
+      .then(r => setResult(r.data))
+      .catch(() => setError('Preview generation failed'))
+      .finally(() => setLoading(false));
+  }, [sport.key]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '24px',
+      }}
+    >
+      <div onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '100%' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div style={{ color: '#fff', fontWeight: '600', fontSize: '14px' }}>
+            {sport.emoji} {sport.name} — Graphic Preview
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff',
+              borderRadius: '6px', padding: '4px 12px', cursor: 'pointer', fontSize: '13px',
+            }}
+          >
+            ✕ Close
+          </button>
+        </div>
+
+        {/* Content */}
+        {loading && (
+          <div style={{
+            background: '#0B1F3A', borderRadius: '8px', height: '300px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'rgba(255,255,255,0.5)', fontSize: '14px',
+          }}>
+            Generating graphic…
+          </div>
+        )}
+        {error && (
+          <div style={{
+            background: '#1a0a0a', borderRadius: '8px', height: '200px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#f87171', fontSize: '14px',
+          }}>
+            {error}
+          </div>
+        )}
+        {result && (
+          <>
+            <img
+              src={result.url}
+              alt="Match graphic preview"
+              style={{ width: '100%', borderRadius: '8px', display: 'block', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+            <div style={{ marginTop: '10px', fontSize: '12px', color: 'rgba(255,255,255,0.45)', textAlign: 'center' }}>
+              {result.usedReal
+                ? `Using real fixture: ${result.homeTeam} vs ${result.awayTeam}`
+                : 'No fixtures found — showing placeholder data'}
+              {' · '} Click outside to close
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SportCard({ sport, activeSport, onUpdate, onFlash, onPinsChanged }) {
   const [promoText, setPromoText]       = useState(sport.promoText);
   const [expanded, setExpanded]         = useState(false);
@@ -33,6 +112,7 @@ function SportCard({ sport, activeSport, onUpdate, onFlash, onPinsChanged }) {
   const [loadingUp, setLoadingUp]       = useState(false);
   const [pinning, setPinning]           = useState({}); // gameId → bool
   const [saving, setSaving]             = useState(false);
+  const [previewing, setPreviewing]     = useState(false);
   const isActive = activeSport === sport.key;
 
   async function toggle() {
@@ -99,38 +179,54 @@ function SportCard({ sport, activeSport, onUpdate, onFlash, onPinsChanged }) {
   }
 
   return (
-    <div style={{
-      background: 'var(--surface)',
-      border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
-      borderRadius: 'var(--radius)', overflow: 'hidden',
-      boxShadow: isActive ? '0 0 0 3px rgba(47,128,237,0.12)' : 'none',
-      transition: 'all 0.2s',
-    }}>
-      {/* Header */}
+    <>
+      {previewing && <PreviewModal sport={sport} onClose={() => setPreviewing(false)} />}
       <div style={{
-        padding: '14px 18px', display: 'flex',
-        alignItems: 'center', justifyContent: 'space-between',
+        background: 'var(--surface)',
+        border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+        borderRadius: 'var(--radius)', overflow: 'hidden',
+        boxShadow: isActive ? '0 0 0 3px rgba(47,128,237,0.12)' : 'none',
+        transition: 'all 0.2s',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '22px', lineHeight: 1 }}>{sport.emoji}</span>
-          <div>
-            <div style={{ fontWeight: '600', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {sport.name}
-              {isActive && (
-                <span style={{
-                  background: '#dc2626', color: '#fff', fontSize: '10px',
-                  fontWeight: '700', padding: '1px 7px', borderRadius: '10px',
-                  letterSpacing: '0.05em',
-                }}>LIVE</span>
-              )}
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '1px' }}>
-              {sport.enabled ? 'Auto-detecting games' : 'Disabled'}
+        {/* Header */}
+        <div style={{
+          padding: '14px 18px', display: 'flex',
+          alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '22px', lineHeight: 1 }}>{sport.emoji}</span>
+            <div>
+              <div style={{ fontWeight: '600', fontSize: '13.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {sport.name}
+                {isActive && (
+                  <span style={{
+                    background: '#dc2626', color: '#fff', fontSize: '10px',
+                    fontWeight: '700', padding: '1px 7px', borderRadius: '10px',
+                    letterSpacing: '0.05em',
+                  }}>LIVE</span>
+                )}
+              </div>
+              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                {sport.enabled ? 'Auto-detecting games' : 'Disabled'}
+              </div>
             </div>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              onClick={() => setPreviewing(true)}
+              title="Preview graphic"
+              style={{
+                padding: '4px 12px', fontSize: '12px', fontWeight: '500',
+                borderRadius: '6px', border: '1px solid var(--border)',
+                color: 'var(--text-muted)', background: 'transparent',
+                cursor: 'pointer',
+              }}
+            >
+              Preview
+            </button>
+            <Toggle on={sport.enabled} onChange={toggle} />
+          </div>
         </div>
-        <Toggle on={sport.enabled} onChange={toggle} />
-      </div>
 
       {/* Expanded config */}
       {sport.enabled && (
@@ -240,6 +336,7 @@ function SportCard({ sport, activeSport, onUpdate, onFlash, onPinsChanged }) {
         </div>
       )}
     </div>
+    </>
   );
 }
 

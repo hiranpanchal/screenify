@@ -6,6 +6,7 @@ const { requireAuth: auth } = require('../middleware/authMiddleware');
 const { getDb }  = require('../db/database');
 const automation = require('../services/automationManager');
 const { SPORTS_CONFIG, getTodaysGames, getUpcomingGames } = require('../services/sportsService');
+const { generateMatchGraphic } = require('../services/graphicGenerator');
 
 const router = express.Router();
 const upload = multer({
@@ -166,6 +167,63 @@ router.post('/pin', auth, async (req, res) => {
   }
 
   res.json({ id: pinId });
+});
+
+// POST /api/automations/preview/:key — generate a preview graphic (not saved to media library)
+router.post('/preview/:key', auth, async (req, res) => {
+  const sport = SPORTS_CONFIG.find(s => s.key === req.params.key);
+  if (!sport) return res.status(404).json({ error: 'Unknown sport' });
+
+  const db = getDb();
+  const barLogo = getSetting(db, 'automation_bar_logo');
+  const barLogoPath = barLogo ? path.join(__dirname, '../uploads', barLogo) : null;
+  const promoText = getSetting(db, `sport_${sport.key}_promo_text`) || sport.defaultPromo;
+
+  // Try to find a real fixture (today first, then upcoming)
+  let game = null;
+  let mode = 'upcoming';
+  try {
+    const today = await getTodaysGames(sport.espnEndpoint);
+    if (today.length) {
+      game = today[0];
+      mode = game.isLive ? 'live' : 'ko';
+    } else {
+      const soon = await getUpcomingGames(sport.espnEndpoint, 7);
+      if (soon.length) { game = soon[0]; mode = 'upcoming'; }
+    }
+  } catch { /* fall through to dummy */ }
+
+  // Dummy data if no real fixtures found
+  const homeTeam    = game ? game.homeTeam    : 'Home FC';
+  const awayTeam    = game ? game.awayTeam    : 'Away United';
+  const homeBadgeUrl = game ? game.homeBadgeUrl : '';
+  const awayBadgeUrl = game ? game.awayBadgeUrl : '';
+  const startTime   = game ? game.startTime   : new Date(Date.now() + 3 * 3600 * 1000).toISOString();
+  const isLive      = game ? game.isLive      : false;
+
+  try {
+    const { filename, filepath } = await generateMatchGraphic({
+      homeTeam, awayTeam, homeBadgeUrl, awayBadgeUrl,
+      leagueBadgeUrl: sport.leagueBadge,
+      kickoffTime: startTime,
+      isLive, mode, startTime,
+      promoText,
+      barLogoPath,
+      filenamePrefix: 'preview_',
+    });
+
+    // Auto-delete after 10 minutes so previews don't accumulate
+    setTimeout(() => { try { fs.unlinkSync(filepath); } catch { /* ok */ } }, 10 * 60 * 1000);
+
+    res.json({
+      url: `/uploads/${filename}`,
+      usedReal: !!game,
+      homeTeam, awayTeam, mode,
+    });
+  } catch (e) {
+    console.error('[Preview] generation failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // DELETE /api/automations/pin/:id — unpin a game

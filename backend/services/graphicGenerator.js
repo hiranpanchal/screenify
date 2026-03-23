@@ -98,10 +98,11 @@ async function generateMatchGraphic({
   homeBadgeUrl, awayBadgeUrl,
   leagueBadgeUrl,
   kickoffTime, isLive,
-  mode = 'live',   // 'live' | 'upcoming'
-  startTime,       // Date object — used for upcoming badge label
+  mode = 'live',   // 'live' | 'upcoming' | 'ko'
+  startTime,       // ISO string — used for upcoming badge label
   promoText,
   barLogoPath,
+  filenamePrefix = 'match_',
 }) {
   const plBadgeUrl = leagueBadgeUrl; // alias for internal use
   const canvas = createCanvas(W, H);
@@ -232,7 +233,7 @@ async function generateMatchGraphic({
   ctx.fillText(promoText || 'MATCH DAY SPECIAL', W / 2, H - barH / 2);
 
   // ── Save PNG ─────────────────────────────────────────────────
-  const filename = `match_${Date.now()}.png`;
+  const filename = `${filenamePrefix}${Date.now()}.png`;
   const filepath = path.join(UPLOADS_DIR, filename);
   fs.writeFileSync(filepath, canvas.toBuffer('image/png'));
 
