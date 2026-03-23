@@ -7,10 +7,11 @@ const { getDb }  = require('../db/database');
 const automation = require('../services/automationManager');
 const { SPORTS_CONFIG, getTodaysGames, getUpcomingGames } = require('../services/sportsService');
 const { generateMatchGraphic } = require('../services/graphicGenerator');
+const { UPLOADS_DIR } = require('../config/paths');
 
 const router = express.Router();
 const upload = multer({
-  dest: path.join(__dirname, '../uploads'),
+  dest: UPLOADS_DIR,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith('image/')),
 });
@@ -63,11 +64,11 @@ router.post('/bar-logo', auth, upload.single('logo'), (req, res) => {
   const db  = getDb();
   const old = getSetting(db, 'automation_bar_logo');
   if (old) {
-    try { fs.unlinkSync(path.join(__dirname, '../uploads', old)); } catch { /* ok */ }
+    try { fs.unlinkSync(path.join(UPLOADS_DIR, old)); } catch { /* ok */ }
   }
   const ext     = path.extname(req.file.originalname) || '.png';
   const newName = `bar_logo_${Date.now()}${ext}`;
-  fs.renameSync(req.file.path, path.join(__dirname, '../uploads', newName));
+  fs.renameSync(req.file.path, path.join(UPLOADS_DIR, newName));
   setSetting(db, 'automation_bar_logo', newName);
   automation.triggerNow().catch(console.error);
   res.json({ filename: newName });
@@ -176,7 +177,7 @@ router.post('/preview/:key', auth, async (req, res) => {
 
   const db = getDb();
   const barLogo = getSetting(db, 'automation_bar_logo');
-  const barLogoPath = barLogo ? path.join(__dirname, '../uploads', barLogo) : null;
+  const barLogoPath = barLogo ? path.join(UPLOADS_DIR, barLogo) : null;
   const promoText = getSetting(db, `sport_${sport.key}_promo_text`) || sport.defaultPromo;
 
   // Try to find a real fixture (today first, then upcoming)

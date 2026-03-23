@@ -6,10 +6,9 @@ const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../db/database');
 const { requireAuth } = require('../middleware/authMiddleware');
 
-const router = express.Router();
+const { UPLOADS_DIR } = require('../config/paths');
 
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+const router = express.Router();
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),

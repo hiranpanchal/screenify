@@ -11,6 +11,7 @@ const fs     = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { SPORTS_CONFIG, getActiveGamesForSport, getTodaysGames } = require('./sportsService');
 const { generateMatchGraphic } = require('./graphicGenerator');
+const { UPLOADS_DIR } = require('../config/paths');
 
 let db      = null;
 let cronJob = null;
@@ -89,7 +90,7 @@ async function generatePinnedGraphic(pin) {
 
   const promoText   = getSetting(`sport_${pin.sport_key}_promo_text`) || sport.defaultPromo;
   const barLogoFile = getSetting('automation_bar_logo');
-  const barLogoPath = barLogoFile ? path.join(__dirname, '../uploads', barLogoFile) : null;
+  const barLogoPath = barLogoFile ? path.join(UPLOADS_DIR, barLogoFile) : null;
 
   const { filename } = await generateMatchGraphic({
     homeTeam:       pin.home_team,
@@ -105,7 +106,7 @@ async function generatePinnedGraphic(pin) {
   });
 
   const mediaId = uuidv4();
-  const size    = fs.statSync(path.join(__dirname, '../uploads', filename)).size;
+  const size    = fs.statSync(path.join(UPLOADS_DIR, filename)).size;
 
   db.prepare('UPDATE media SET sort_order = sort_order + 1').run();
   db.prepare(`
@@ -117,7 +118,7 @@ async function generatePinnedGraphic(pin) {
   if (pin.media_id) {
     const old = db.prepare('SELECT filename FROM media WHERE id = ?').get(pin.media_id);
     if (old) {
-      try { fs.unlinkSync(path.join(__dirname, '../uploads', old.filename)); } catch { /* ok */ }
+      try { fs.unlinkSync(path.join(UPLOADS_DIR, old.filename)); } catch { /* ok */ }
       db.prepare('DELETE FROM media WHERE id = ?').run(pin.media_id);
     }
   }
@@ -132,7 +133,7 @@ async function removePinnedGame(pinId) {
   if (pin.media_id) {
     const row = db.prepare('SELECT filename FROM media WHERE id = ?').get(pin.media_id);
     if (row) {
-      try { fs.unlinkSync(path.join(__dirname, '../uploads', row.filename)); } catch { /* ok */ }
+      try { fs.unlinkSync(path.join(UPLOADS_DIR, row.filename)); } catch { /* ok */ }
       db.prepare('DELETE FROM media WHERE id = ?').run(pin.media_id);
     }
   }
@@ -156,7 +157,7 @@ async function ensureGraphicForGame(sport, game, mode = 'live') {
   // Build graphic params
   const promoText   = getSetting(`sport_${sport.key}_promo_text`) || sport.defaultPromo;
   const barLogoFile = getSetting('automation_bar_logo');
-  const barLogoPath = barLogoFile ? path.join(__dirname, '../uploads', barLogoFile) : null;
+  const barLogoPath = barLogoFile ? path.join(UPLOADS_DIR, barLogoFile) : null;
 
   const isLive = game.isLive || false;
 
@@ -187,7 +188,7 @@ async function ensureGraphicForGame(sport, game, mode = 'live') {
   db.prepare('UPDATE media SET sort_order = sort_order + 1').run();
 
   const mediaId = uuidv4();
-  const size    = fs.statSync(path.join(__dirname, '../uploads', filename)).size;
+  const size    = fs.statSync(path.join(UPLOADS_DIR, filename)).size;
 
   db.prepare(`
     INSERT INTO media (id, filename, original_name, mimetype, type, size, duration, sort_order, source)
@@ -207,7 +208,7 @@ async function removeActiveGraphic() {
 
   const row = db.prepare('SELECT filename FROM media WHERE id = ?').get(mediaId);
   if (row) {
-    const fp = path.join(__dirname, '../uploads', row.filename);
+    const fp = path.join(UPLOADS_DIR, row.filename);
     try { if (fs.existsSync(fp)) fs.unlinkSync(fp); } catch { /* ok */ }
     db.prepare('DELETE FROM media WHERE id = ?').run(mediaId);
     console.log('[Automation] Removed match graphic');

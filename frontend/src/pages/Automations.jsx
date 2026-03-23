@@ -29,9 +29,9 @@ function PreviewModal({ sport, onClose }) {
   const [error, setError]     = useState(null);
 
   useEffect(() => {
-    api.post(`/automations/preview/${sport.key}`)
+    api.post(`/automations/preview/${sport.key}`, null, { timeout: 35000 })
       .then(r => setResult(r.data))
-      .catch(() => setError('Preview generation failed'))
+      .catch(e => setError(e?.response?.data?.error || 'Preview generation failed — try again'))
       .finally(() => setLoading(false));
   }, [sport.key]);
 

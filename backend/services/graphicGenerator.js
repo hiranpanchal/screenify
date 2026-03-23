@@ -19,21 +19,28 @@ const fs   = require('fs');
 const https = require('https');
 const http  = require('http');
 
-const UPLOADS_DIR = path.join(__dirname, '../uploads');
+const { UPLOADS_DIR } = require('../config/paths');
 const W = 1920;
 const H = 1080;
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-function fetchBuffer(url) {
+function fetchBuffer(url, timeoutMs = 6000) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
-    lib.get(url, { headers: { 'User-Agent': 'Screenifi/1.0' } }, (res) => {
+    const req = lib.get(url, { headers: { 'User-Agent': 'Screenifi/1.0' } }, (res) => {
+      // Follow redirects for badge images
+      if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307) {
+        return fetchBuffer(res.headers.location, timeoutMs).then(resolve).catch(reject);
+      }
       const chunks = [];
       res.on('data', c => chunks.push(c));
       res.on('end', () => resolve(Buffer.concat(chunks)));
       res.on('error', reject);
     }).on('error', reject);
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`Badge image fetch timed out: ${url}`));
+    });
   });
 }
 

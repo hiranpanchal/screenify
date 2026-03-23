@@ -125,12 +125,12 @@ module.exports = { SPORTS_CONFIG };
 
 // ── HTTP helper ───────────────────────────────────────────────────
 
-function fetchJSON(url) {
+function fetchJSON(url, timeoutMs = 10000) {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'Screenifi/1.0' } }, (res) => {
+    const req = https.get(url, { headers: { 'User-Agent': 'Screenifi/1.0' } }, (res) => {
       // Follow redirect
       if (res.statusCode === 301 || res.statusCode === 302) {
-        return fetchJSON(res.headers.location).then(resolve).catch(reject);
+        return fetchJSON(res.headers.location, timeoutMs).then(resolve).catch(reject);
       }
       let data = '';
       res.on('data', c => data += c);
@@ -138,7 +138,11 @@ function fetchJSON(url) {
         try { resolve(JSON.parse(data)); }
         catch { reject(new Error(`Invalid JSON from ${url}`)); }
       });
+      res.on('error', reject);
     }).on('error', reject);
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`ESPN request timed out after ${timeoutMs}ms`));
+    });
   });
 }
 

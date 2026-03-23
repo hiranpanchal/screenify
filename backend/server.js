@@ -22,7 +22,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ── Static: serve uploaded files ────────────────────────────
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const { UPLOADS_DIR } = require('./config/paths');
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // ── API Routes ──────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
