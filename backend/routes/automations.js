@@ -2,7 +2,7 @@ const express  = require('express');
 const multer   = require('multer');
 const path     = require('path');
 const fs       = require('fs');
-const auth     = require('../middleware/authMiddleware');
+const { requireAuth: auth } = require('../middleware/authMiddleware');
 const { getDb } = require('../db/database');
 const automation = require('../services/automationManager');
 
