@@ -72,11 +72,12 @@ function drawImageFit(ctx, img, cx, cy, size) {
 async function generateMatchGraphic({
   homeTeam, awayTeam,
   homeBadgeUrl, awayBadgeUrl,
-  plBadgeUrl,
+  leagueBadgeUrl,
   kickoffTime, isLive,
   promoText,
   barLogoPath,
 }) {
+  const plBadgeUrl = leagueBadgeUrl; // alias for internal use
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d');
 

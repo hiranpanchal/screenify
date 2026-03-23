@@ -3,16 +3,15 @@ const multer   = require('multer');
 const path     = require('path');
 const fs       = require('fs');
 const { requireAuth: auth } = require('../middleware/authMiddleware');
-const { getDb } = require('../db/database');
+const { getDb }  = require('../db/database');
 const automation = require('../services/automationManager');
+const { SPORTS_CONFIG, getTodaysGames } = require('../services/sportsService');
 
-const router  = express.Router();
-const upload  = multer({
+const router = express.Router();
+const upload = multer({
   dest: path.join(__dirname, '../uploads'),
   limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    cb(null, file.mimetype.startsWith('image/'));
-  },
+  fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith('image/')),
 });
 
 function getSetting(db, key) {
@@ -20,82 +19,81 @@ function getSetting(db, key) {
   return row ? row.value : '';
 }
 function setSetting(db, key, value) {
-  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, String(value));
+  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, String(value ?? ''));
 }
 
-// GET /api/automations — return current config
+// GET /api/automations — full config for all sports
 router.get('/', auth, (req, res) => {
   const db = getDb();
+  const sports = SPORTS_CONFIG.map(s => ({
+    key:       s.key,
+    name:      s.name,
+    emoji:     s.emoji,
+    enabled:   getSetting(db, `sport_${s.key}_enabled`) === '1',
+    promoText: getSetting(db, `sport_${s.key}_promo_text`) || s.defaultPromo,
+  }));
+
   res.json({
-    football_enabled:    getSetting(db, 'football_enabled') === '1',
-    football_promo_text: getSetting(db, 'football_promo_text'),
-    football_bar_logo:   getSetting(db, 'football_bar_logo'),
-    football_active_media_id:  getSetting(db, 'football_active_media_id'),
-    football_active_game_key:  getSetting(db, 'football_active_game_key'),
+    sports,
+    barLogo:         getSetting(db, 'automation_bar_logo'),
+    activeMediaId:   getSetting(db, 'automation_active_media_id'),
+    activeSport:     getSetting(db, 'automation_active_sport'),
+    activeGameKey:   getSetting(db, 'automation_active_game_key'),
   });
 });
 
-// PUT /api/automations — update config
-router.put('/', auth, (req, res) => {
-  const db = getDb();
-  const { football_enabled, football_promo_text } = req.body;
+// PUT /api/automations/sport/:key — update a single sport's config
+router.put('/sport/:key', auth, (req, res) => {
+  const db    = getDb();
+  const sport = SPORTS_CONFIG.find(s => s.key === req.params.key);
+  if (!sport) return res.status(404).json({ error: 'Unknown sport' });
 
-  if (football_enabled !== undefined) setSetting(db, 'football_enabled', football_enabled ? '1' : '0');
-  if (football_promo_text !== undefined) setSetting(db, 'football_promo_text', football_promo_text);
+  const { enabled, promoText } = req.body;
+  if (enabled  !== undefined) setSetting(db, `sport_${sport.key}_enabled`,    enabled ? '1' : '0');
+  if (promoText !== undefined) setSetting(db, `sport_${sport.key}_promo_text`, promoText);
 
-  // Trigger an immediate re-check after config change
   automation.triggerNow().catch(console.error);
-
   res.json({ ok: true });
 });
 
-// POST /api/automations/bar-logo — upload bar logo
+// POST /api/automations/bar-logo — upload shared bar logo
 router.post('/bar-logo', auth, upload.single('logo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-
-  const db = getDb();
-  const old = getSetting(db, 'football_bar_logo');
-
-  // Delete old logo
+  const db  = getDb();
+  const old = getSetting(db, 'automation_bar_logo');
   if (old) {
     try { fs.unlinkSync(path.join(__dirname, '../uploads', old)); } catch { /* ok */ }
   }
-
-  // Rename multer's temp file to keep the extension
-  const ext      = path.extname(req.file.originalname) || '.png';
-  const newName  = `bar_logo_${Date.now()}${ext}`;
-  const newPath  = path.join(__dirname, '../uploads', newName);
-  fs.renameSync(req.file.path, newPath);
-
-  setSetting(db, 'football_bar_logo', newName);
-
-  // Re-generate with new logo if automation is active
+  const ext     = path.extname(req.file.originalname) || '.png';
+  const newName = `bar_logo_${Date.now()}${ext}`;
+  fs.renameSync(req.file.path, path.join(__dirname, '../uploads', newName));
+  setSetting(db, 'automation_bar_logo', newName);
   automation.triggerNow().catch(console.error);
-
   res.json({ filename: newName });
 });
 
-// POST /api/automations/trigger — force an immediate check (useful for testing)
+// POST /api/automations/trigger — force immediate check
 router.post('/trigger', auth, async (req, res) => {
   try {
     await automation.triggerNow();
-    res.json({ ok: true, message: 'Check triggered' });
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// GET /api/automations/fixtures — preview today's PL fixtures
-router.get('/fixtures', auth, async (req, res) => {
+// GET /api/automations/fixtures/:key — today's games for a sport
+router.get('/fixtures/:key', auth, async (req, res) => {
+  const sport = SPORTS_CONFIG.find(s => s.key === req.params.key);
+  if (!sport) return res.status(404).json({ error: 'Unknown sport' });
   try {
-    const { getTodaysPLGames } = require('../services/footballService');
-    const games = await getTodaysPLGames();
+    const games = await getTodaysGames(sport.league);
     res.json(games.map(g => ({
-      id: g.idEvent,
-      home: g.strHomeTeam,
-      away: g.strAwayTeam,
-      time: g.strTime,
-      date: g.dateEvent,
+      id:     g.idEvent,
+      home:   g.strHomeTeam,
+      away:   g.strAwayTeam,
+      time:   g.strTime,
+      date:   g.dateEvent,
       status: g.strStatus,
     })));
   } catch (e) {

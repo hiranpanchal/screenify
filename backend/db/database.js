@@ -67,6 +67,8 @@ function initSchema() {
   } catch (e) { /* already exists */ }
 
   // Insert default settings if they don't exist
+  const { SPORTS_CONFIG } = require('../services/sportsService');
+
   const defaults = {
     default_duration: '8',
     transition: 'fade',
@@ -74,13 +76,18 @@ function initSchema() {
     shuffle: 'false',
     loop: 'true',
     show_progress: 'true',
-    // Football automation
-    football_enabled: '0',
-    football_promo_text: 'MATCH DAY SPECIAL — PINTS £4 ALL GAME',
-    football_bar_logo: '',
-    football_active_media_id: '',
-    football_active_game_key: '',
+    // Shared automation settings
+    automation_bar_logo: '',
+    automation_active_media_id: '',
+    automation_active_game_key: '',
+    automation_active_sport: '',
   };
+
+  // Seed per-sport defaults
+  for (const sport of SPORTS_CONFIG) {
+    defaults[`sport_${sport.key}_enabled`]    = '0';
+    defaults[`sport_${sport.key}_promo_text`] = sport.defaultPromo;
+  }
 
   const insertSetting = db.prepare(
     `INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`
